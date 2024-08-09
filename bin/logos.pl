@@ -462,19 +462,46 @@ foreach my $line (@lines) {
 
 				my $remaining = substr($line, pos($line));
 				my $orig_args = undef;
+				my $full_code = $remaining;
+				my $paren_depth = ($full_code =~ tr/(//) - ($full_code =~ tr/)//);
+				my $brace_depth = ($full_code =~ tr/{//) - ($full_code =~ tr/}//);
+				my $line_index = $lineno;
 
-				my ($popen, $pclose) = matchedParenthesisSet($remaining);
-				if(defined $popen) {
-					$orig_args = substr($remaining, $popen, $pclose-$popen-1);;
-					pos($line) = pos($line) + $pclose;
+				while ($paren_depth > 0 || $brace_depth > 0) {
+					$line_index++;
+					last unless defined $lines[$line_index];
+					$full_code .= "\n" . $lines[$line_index];
+					$paren_depth += ($lines[$line_index] =~ tr/(//) - ($lines[$line_index] =~ tr/)//);
+					$brace_depth += ($lines[$line_index] =~ tr/{//) - ($lines[$line_index] =~ tr/}//);
+				}
+
+				my $has_semicolon = $full_code =~ /;\s*$/;
+				$full_code =~ s/;\s*$//;
+
+				if ($full_code =~ /^\s*\((.*)\)\s*$/s) {
+					$orig_args = $1;
+				} else {
+					fileError($lineno, "Invalid argument structure in %orig");
 				}
 
 				my $capturedMethod = $currentMethod;
 				my $patch = Patch->new();
 				$patch->line($lineno);
-				$patch->range($patchStart, pos($line));
+				$patch->range($patchStart, length($line));
 				$patch->source(Patch::Source::Generator->new($capturedMethod, 'originalCall', $orig_args));
 				addPatch($patch);
+
+				my $lines_processed = $line_index - $lineno;
+				for (my $i = 1; $i <= $lines_processed; $i++) {
+					my $patch = Patch->new();
+					$patch->line($lineno + $i);
+					$patch->range(0, length($lines[$lineno + $i]));
+					$patch->source(Patch::Source::Generator->new($capturedMethod, 'deleteLine'));
+					addPatch($patch);
+				}
+
+				$line .= ";" if $has_semicolon;
+				pos($line) = length($line);
 			}
 		} elsif($line =~ /\G&\s*%orig\b/gc) {
 			# &%orig, at a word boundary

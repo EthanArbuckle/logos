@@ -70,6 +70,10 @@ sub originalCall {
 	return $build;
 }
 
+sub deleteLine {
+	return "";
+}
+
 sub declarations {
 	my $self = shift;
 	my $method = shift;
