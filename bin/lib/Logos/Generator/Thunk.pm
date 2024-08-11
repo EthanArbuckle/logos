@@ -15,6 +15,10 @@ sub AUTOLOAD {
 	my $subref = $subrefCache{$fullyQualified};
 
 	$subref = $self->can($method) if !$subref;
+	if (!$subref) {
+		warn("Method '$method' does not exist on package ".$self->{PACKAGE});
+		return undef;
+	}
 
 	unshift @_, $self->{OBJECT} if $self->{OBJECT};
 	goto &$subref;
@@ -29,8 +33,13 @@ sub can {
 	$method =~ s/.*:://;
 	my $fullyQualified = $self->{PACKAGE}."::".$method;
 	return $subrefCache{$fullyQualified} if $subrefCache{$fullyQualified};
+	
+	my $package_can = $self->{PACKAGE}->can($method);
+	if (!$package_can) {
+		return undef;
+	}
 
-	$subref = sub {unshift @_, $self->{PACKAGE}; goto &{$self->{PACKAGE}->can($method)}};
+	$subref = sub {unshift @_, $self->{PACKAGE}; goto &$package_can};
 	$subrefCache{$fullyQualified} = $subref;
 
 	return $subref;
