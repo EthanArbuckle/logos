@@ -180,3 +180,22 @@ class TestOrigDirective:
         assert logos_output is not None
         assert stderr is None
         assert "_logos_meta_orig$_ungrouped$NSString$stringWithFormat$(self, _cmd, format, args);" in logos_output
+
+    def test_orig_inside_of_orig_arg(self) -> None:
+        test_case = """
+        %hook SomeClass
+        - (void)someMethodWithCallback:(void (^)(NSString *, NSError *))callback {
+            %orig(^(NSString *result, NSError *error) {
+
+                %orig;  // This should raise an error
+                if (error) {
+                    NSLog(@"Error: %@", error);
+                }
+                callback(result, error);
+            });
+        }
+        %end
+        """
+        _, stderr = LogosExecutor.preprocess_source(test_case)
+        assert stderr is not None
+        assert "Tweak.x:4: error: %orig cannot be referenced in %orig arguments" in stderr
