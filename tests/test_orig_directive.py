@@ -198,4 +198,4 @@ class TestOrigDirective:
         """
         _, stderr = LogosExecutor.preprocess_source(test_case)
         assert stderr is not None
-        assert "Tweak.x:4: error: %orig cannot be referenced in %orig arguments" in stderr
+        assert "Tweak.x:4: error: Logos cannot be used within arguments to %orig" in stderr
